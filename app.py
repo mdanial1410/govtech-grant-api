@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request, make_response
 from flask_mongoengine import MongoEngine
-from mongoengine import DoesNotExist
 import json
+from bson.objectid import ObjectId
+from mongoengine import DoesNotExist, NotUniqueError, ObjectIdField
 
 app = Flask(__name__)
 
@@ -28,8 +29,14 @@ family: [
 '''
 
 class Family(db.EmbeddedDocument):
-    name = db.StringField()
-    # gender = db.StringField()
+    id = db.IntField()
+    name = db.StringField(required=True)
+    # gender = db.StringField(required=True)
+    # maritalStatus = db.StringField(required=True)
+    # spouse = db.StringField(required=True)
+    # occupationType = db.StringField(required=True)
+    # annualIncome = db.StringField(required=True)
+    # dob = db.StringField(required=True)
 
 
 class House(db.Document):
@@ -42,28 +49,63 @@ class House(db.Document):
 def create_household():
     h_id = list()
     content = request.json
-    if isinstance(content, list):
-        for item in content:
-            h = House(house_id=item['house_id'], housingType=item['housingType'])
+    try:
+        if isinstance(content, list):
+            for item in content:
+                h = House(house_id=item['house_id'], housingType=item['housingType'])
+                h.save()
+                h_id.append(h.house_id)
+        else:
+            h = House(house_id=content['house_id'], housingType=content['housingType'])
             h.save()
             h_id.append(h.house_id)
-    else:
-        h = House(house_id=content['house_id'], housingType=content['housingType'])
-        h.save()
-        h_id.append(h.house_id)
-    return make_response(f"House ID: {h_id} successfully created.", 201)
+        return make_response(f"House ID: {h_id} successfully created.", 201)
+    except NotUniqueError:
+        return make_response(f"Duplicated House ID detected!\n"
+                             f"These were successfully created-> House ID: {h_id}", 400)
 
 
 @app.route('/api/add_family/<h_id>', methods=['POST'])
 def add_family(h_id):
+    '''
+    check if family member alrdy exists. append if not.
+    '''
     content = request.json
+    h = House.objects.get(house_id=h_id).to_json()
+    h = json.loads(h)
+    print(h)
+    family = h['family']
+    print(f"family = {family}")
+    print(f"content = {content['family']}")
+    if family:
+        count = family[-1].get('id') + 1
+    else:
+        count = 1
+    print(f"count-> {count}")
+    for name in content['family']:
+        name.update({'id': count})
+        family.append(name)
+        count += 1
+    print(family)
+    House.objects.get(house_id=h_id).update(family=family)
+
+    # if family:
+    #     for name in content['family']:
+    #         family.append(name)
+    # print(family)
+    # House.objects.get(house_id=h_id).update(family=family)
+
+    # family = [{'name':'boy'}]
+    # h = House(house_id=10, housingType="asd", family=family)
+    # h.save()
     # House.objects.get(house_id=h_id).update(**content)
-    h = House.objects.get(house_id=h_id)
-    print(h['family'])
+
+    # print(h['family'])
     # print(h.to_json())
     # h.family.append(content['family'])
     # h.save()
-    return make_response(f"Added family member in House ID:{h_id} successfully", 201)
+    return make_response('', 200)
+    # return make_response(f"Added family member in House ID:{h_id} successfully", 201)
 
 
 @app.route('/api/list_household', methods=['GET'])
