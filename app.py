@@ -31,12 +31,12 @@ family: [
 class Family(db.EmbeddedDocument):
     id = db.IntField()
     name = db.StringField(required=True)
-    # gender = db.StringField(required=True)
-    # maritalStatus = db.StringField(required=True)
-    # spouse = db.StringField(required=True)
-    # occupationType = db.StringField(required=True)
-    # annualIncome = db.StringField(required=True)
-    # dob = db.StringField(required=True)
+    gender = db.StringField(required=True)
+    maritalStatus = db.StringField(required=True)
+    spouse = db.StringField()
+    occupationType = db.StringField(required=True)
+    annualIncome = db.IntField(required=True)
+    dob = db.StringField(required=True)
 
 
 class House(db.Document):
@@ -47,6 +47,9 @@ class House(db.Document):
 
 @app.route('/api/create_household', methods=['POST'])
 def create_household():
+    '''
+    create household with no family members initialised
+    '''
     h_id = list()
     content = request.json
     try:
@@ -61,8 +64,7 @@ def create_household():
             h_id.append(h.house_id)
         return make_response(f"House ID: {h_id} successfully created.", 201)
     except NotUniqueError:
-        return make_response(f"Duplicated House ID detected!\n"
-                             f"These were successfully created-> House ID: {h_id}", 400)
+        return make_response(f"Duplicated House ID detected!\n", 400)
 
 
 @app.route('/api/add_family/<h_id>', methods=['POST'])
@@ -145,6 +147,10 @@ def del_member(h_id, fam_name):
 
     House.objects.get(house_id=h_id).update(family=new_family)
     return make_response('', 200)
+
+
+@app.route('/api/show_household/<grant>', methods=['GET']) <<<???
+def grant_disbursement(grant):
 
 
 if __name__ == "__main__":
