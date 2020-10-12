@@ -75,24 +75,32 @@ def list_household():
 def show_household(h_id):
     try:
         house = House.objects.get(house_id=h_id)
+        return make_response(jsonify(house), 200)
     except DoesNotExist:
         return make_response(f'House ID: {h_id} does not exist!', 400)
-    return make_response(jsonify(house), 200)
 
 
 @app.route('/api/del_household/<h_id>', methods=['DELETE'])
 def del_household(h_id):
-    House.objects.get(house_id=h_id).delete()
-    return make_response(f'House ID: {h_id} deleted successfully', 200)
+    try:
+        House.objects.get(house_id=h_id).delete()
+        return make_response(f'House ID: {h_id} deleted successfully', 200)
+    except Exception:
+        return make_response(f'Something went wrong trying to delete House ID: {h_id}', 500)
 
 
 @app.route('/api/del_member/<h_id>/<fam_name>', methods=['DELETE'])
 def del_member(h_id, fam_name):
-    # House.objects.get().delete()
-    h = House.objects.get(house_id=h_id)
-    t = h.family.get(name=fam_name)
-    print(t)
-    return make_response(jsonify(t), 200)
+    try:
+        # House.objects.get().delete()
+        h = House.objects.get(house_id=h_id)
+        t = h.family.get(name=fam_name)
+        print(t)
+        return make_response(jsonify(t), 200)
+    except Exception:
+        return make_response(f'Something went wrong trying to delete '
+                             f'Member: {fam_name} in House ID: {h_id}', 500)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
