@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, make_response
 from flask_mongoengine import MongoEngine
 from mongoengine import DoesNotExist
+import json
 
 app = Flask(__name__)
 
@@ -22,7 +23,7 @@ family: [
             {family member 1 ('name': "..." , "gender": "..." , and so on},
             {family member 2},
             ...
-        }
+        ]
 }
 '''
 
@@ -91,15 +92,19 @@ def del_household(h_id):
 
 @app.route('/api/del_member/<h_id>/<fam_name>', methods=['DELETE'])
 def del_member(h_id, fam_name):
-    try:
-        # House.objects.get().delete()
-        h = House.objects.get(house_id=h_id)
-        t = h.family.get(name=fam_name)
-        print(t)
-        return make_response(jsonify(t), 200)
-    except Exception:
-        return make_response(f'Something went wrong trying to delete '
-                             f'Member: {fam_name} in House ID: {h_id}', 500)
+    h = House.objects.get(house_id=h_id).to_json()
+    h = json.loads(h)
+    family = h['family']
+    new_family = family.copy()
+
+    for i in range(len(family)):
+        name = family[i].get('name')
+        if name == fam_name:
+            del new_family[i]
+            break
+
+    House.objects.get(house_id=h_id).update(family=new_family)
+    return make_response('', 200)
 
 
 if __name__ == "__main__":
