@@ -68,44 +68,42 @@ def create_household():
 @app.route('/api/add_family/<h_id>', methods=['POST'])
 def add_family(h_id):
     '''
-    check if family member alrdy exists. append if not.
+    family member is added only if its not already in the database
     '''
+    edited = False
     content = request.json
     h = House.objects.get(house_id=h_id).to_json()
     h = json.loads(h)
-    print(h)
-    family = h['family']
-    print(f"family = {family}")
-    print(f"content = {content['family']}")
-    if family:
-        count = family[-1].get('id') + 1
+    family_arr = h['family']
+    if family_arr:
+        # family_arr not empty
+        count = family_arr[-1].get('id') + 1
     else:
         count = 1
-    print(f"count-> {count}")
-    for name in content['family']:
-        name.update({'id': count})
-        family.append(name)
-        count += 1
-    print(family)
-    House.objects.get(house_id=h_id).update(family=family)
 
-    # if family:
-    #     for name in content['family']:
-    #         family.append(name)
-    # print(family)
-    # House.objects.get(house_id=h_id).update(family=family)
+    for new_name in content['family']:
+        if not dup_name_check(family_arr, new_name['name']):
+            new_name.update({'id': count})
+            family_arr.append(new_name)
+            count += 1
+            edited = True
 
-    # family = [{'name':'boy'}]
-    # h = House(house_id=10, housingType="asd", family=family)
-    # h.save()
-    # House.objects.get(house_id=h_id).update(**content)
+    if edited:
+        House.objects.get(house_id=h_id).update(family=family_arr)
+        return make_response(f"Successfully added family member in House ID:{h_id}", 201)
+    else:
+        return make_response(f"Duplicated entries detected!", 400)
 
-    # print(h['family'])
-    # print(h.to_json())
-    # h.family.append(content['family'])
-    # h.save()
-    return make_response('', 200)
-    # return make_response(f"Added family member in House ID:{h_id} successfully", 201)
+
+def dup_name_check(family_arr, new_name):
+    '''
+    checks for duplicate name in the family array
+    :return: boolean
+    '''
+    for member in family_arr:
+        if member.get('name') == new_name:
+            return True
+    return False
 
 
 @app.route('/api/list_household', methods=['GET'])
