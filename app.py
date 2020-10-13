@@ -37,12 +37,14 @@ class Family(db.EmbeddedDocument):
     occupationType = db.StringField(required=True, choices=OCCUPATION)
     annualIncome = db.IntField(required=True)
     dob = db.StringField(required=True)
+    #dob has to be in the format 'DD MM YYYY'
 
 
 class House(db.Document):
     house_id = db.IntField(required=True, unique=True)
     housingType = db.StringField(required=True)
     family = db.EmbeddedDocumentListField(Family)
+    # family_size = db.IntField(default=0)
 
 
 @app.route('/api/create_household', methods=['POST'])
@@ -92,7 +94,8 @@ def add_family(h_id):
 
     if edited:
         House.objects.get(house_id=h_id).update(family=family_arr)
-        return make_response(f"Successfully added family member in House ID:{h_id}", 201)
+        # House.objects.get(house_id=h_id).update(family=family_arr, family_size=len(family_arr))
+        return make_response(f"Successfully added family member to House ID: {h_id}", 201)
     else:
         return make_response(f"Duplicated entries detected!", 400)
 
@@ -110,13 +113,12 @@ def dup_name_check(family_arr, new_name):
 
 @app.route('/api/list_household', methods=['GET'])
 def list_household():
-    houses = House.objects()
+    houses = House.objects.all()
     return make_response(jsonify(houses), 200)
 
 
 @app.route('/api/show_household/<h_id>', methods=['GET'])
 def show_household(h_id):
-    # need to remove spouse before showing results
     try:
         h = House.objects.get(house_id=h_id).to_json()
         h = json.loads(h)
@@ -139,7 +141,8 @@ def del_household(h_id):
     try:
         House.objects.get(house_id=h_id).delete()
         return make_response(f'House ID: {h_id} deleted successfully', 200)
-    except Exception:
+    except Exception as e:
+        print(e)
         return make_response(f'Something went wrong trying to delete House ID: {h_id}', 500)
 
 
@@ -156,12 +159,56 @@ def del_member(h_id, fam_name):
             del new_family[i]
             break
 
+    # House.objects.get(house_id=h_id).update(family=new_family, family_size=len(new_family))
     House.objects.get(house_id=h_id).update(family=new_family)
-    return make_response('', 200)
+    return make_response(f'Successfully removed {fam_name}', 200)
 
 
-# @app.route('/api/show_household/<grant>', methods=['GET']) <<<???
-# def grant_disbursement(grant):
+@app.route('/api/grant_disbursement/<h_size>', methods=['GET'])
+def grant_disbursement(h_size):
+    '''
+    retrieve only houses that matches with h_size.
+    calculate total income and compare with threshold of each grant/scheme.
+    return a list of dictionaries with schemes as keys.
+    for qualifying family members, return only their names.
+    '''
+    h = House.objects.filter(family__size=int(h_size)).to_json()
+    h = json.loads(h)
+    print(h)
+    res = {
+        'Student Encouragement Bonus': {},
+        'Family Togetherness': {},
+        'Elder Bonus': {},
+        'Baby SunShine Grant': {},
+        'YOLO GST Grant': {}
+    }
+
+    res['YOLO GST Grant']['house_id'] = [yolo_grant(house, 100000) for house in h]
+
+    # TODO need a func to get the age of each member
+
+    return make_response(jsonify(res), 200)
+
+
+def yolo_grant(h, threshold):
+    '''
+    retrieve households that qualify for the YOLO GST Grant
+    returns the house_id
+    '''
+    total_income = cal_income(h['family'])
+    if total_income < threshold:
+        return h['house_id']
+    return None
+
+
+def cal_income(fam_arr):
+    '''
+    calculate total annual income of the family
+    '''
+    total_income = 0
+    for member in fam_arr:
+        total_income += member['annualIncome']
+    return total_income
 
 
 if __name__ == "__main__":
