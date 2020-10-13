@@ -1,8 +1,7 @@
 from flask import Flask, jsonify, request, make_response
 from flask_mongoengine import MongoEngine
 import json
-from bson.objectid import ObjectId
-from mongoengine import DoesNotExist, NotUniqueError, ObjectIdField
+from mongoengine import DoesNotExist, NotUniqueError
 
 app = Flask(__name__)
 
@@ -27,14 +26,15 @@ family: [
         ]
 }
 '''
+OCCUPATION = ['Unemployed', 'Student', 'Employed']
 
 class Family(db.EmbeddedDocument):
-    id = db.IntField()
+    id = db.IntField(required=True)
     name = db.StringField(required=True)
     gender = db.StringField(required=True)
     maritalStatus = db.StringField(required=True)
     spouse = db.StringField()
-    occupationType = db.StringField(required=True)
+    occupationType = db.StringField(required=True, choices=OCCUPATION)
     annualIncome = db.IntField(required=True)
     dob = db.StringField(required=True)
 
@@ -116,11 +116,22 @@ def list_household():
 
 @app.route('/api/show_household/<h_id>', methods=['GET'])
 def show_household(h_id):
+    # need to remove spouse before showing results
     try:
-        house = House.objects.get(house_id=h_id)
-        return make_response(jsonify(house), 200)
+        h = House.objects.get(house_id=h_id).to_json()
+        h = json.loads(h)
+        rm_spouse(h['family'])
+        return make_response(jsonify(h), 200)
     except DoesNotExist:
         return make_response(f'House ID: {h_id} does not exist!', 400)
+
+
+def rm_spouse(fam_list):
+    '''
+    removes the 'spouse' key from the list of family members
+    '''
+    for member in fam_list:
+        member.pop('spouse', None)
 
 
 @app.route('/api/del_household/<h_id>', methods=['DELETE'])
@@ -149,8 +160,8 @@ def del_member(h_id, fam_name):
     return make_response('', 200)
 
 
-@app.route('/api/show_household/<grant>', methods=['GET']) <<<???
-def grant_disbursement(grant):
+# @app.route('/api/show_household/<grant>', methods=['GET']) <<<???
+# def grant_disbursement(grant):
 
 
 if __name__ == "__main__":

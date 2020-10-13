@@ -1,0 +1,4 @@
+Flask==1.1.2
+flask-mongoengine==0.9.5
+dnspython==2.0.0
+mongoengine==0.20.0
