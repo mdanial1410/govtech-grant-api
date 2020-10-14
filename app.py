@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_mongoengine import MongoEngine
 import json
 from mongoengine import DoesNotExist, NotUniqueError
+from datetime import datetime, date
 
 app = Flask(__name__)
 
@@ -37,7 +38,7 @@ class Family(db.EmbeddedDocument):
     occupationType = db.StringField(required=True, choices=OCCUPATION)
     annualIncome = db.IntField(required=True)
     dob = db.StringField(required=True)
-    #dob has to be in the format 'DD MM YYYY'
+    # dob has to be in the format 'DD-MM-YYYY'
 
 
 class House(db.Document):
@@ -174,9 +175,10 @@ def grant_disbursement(h_size):
     '''
     h = House.objects.filter(family__size=int(h_size)).to_json()
     h = json.loads(h)
-    print(h)
+    # print(h)
+    # if h is empty, tell user
     res = {
-        'Student Encouragement Bonus': {},
+        'Student Encouragement Bonus': [],
         'Family Togetherness': {},
         'Elder Bonus': {},
         'Baby SunShine Grant': {},
@@ -185,9 +187,54 @@ def grant_disbursement(h_size):
 
     res['YOLO GST Grant']['house_id'] = [yolo_grant(house, 100000) for house in h]
 
-    # TODO need a func to get the age of each member
+    for house in h:
+        res.get('Student Encouragement Bonus').append(seb(house, 150000))
 
     return make_response(jsonify(res), 200)
+    # return make_response('', 200)
+
+
+def seb(house, threshold):
+    '''
+    :return: a dict
+    '''
+    res = dict()
+    family_list = list()
+    age_arr = get_age(house['family'])
+    total_income = cal_income(house['family'])
+    if total_income < threshold:
+        for member in age_arr:
+            if member['age'] < 16:
+                family_list.append({'id': member['id'], 'name': member['name']})
+    if family_list:
+        res['house_id'] = house['house_id']
+        res['family'] = family_list
+    return res
+
+
+
+def get_age(fam_arr):
+    '''
+    for every family member. get their age
+    return a dict {'name' : ... , 'age': ...}
+    '''
+    new_arr = list()
+    for member in fam_arr:
+        # print(f"get_age -> {member}")
+        date_obj = datetime.strptime(member['dob'], "%d-%m-%Y")
+        # print(member['dob'])
+        new_arr.append({
+                'id': member['id'],
+                'name': member['name'],
+                'age': calculate_age(date_obj),
+            })
+    # print(new_arr)
+    return new_arr
+
+
+def calculate_age(born):
+    today = date.today()
+    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
 
 def yolo_grant(h, threshold):
