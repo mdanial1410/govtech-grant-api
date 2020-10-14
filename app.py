@@ -6,10 +6,10 @@ from datetime import datetime, date
 
 app = Flask(__name__)
 
-mongo_password = "Danial1410"
+mongo_username = 'user-backend'
+mongo_password = "xtqxIQGH35hzWTzt"
 db_name = "API"
-DB_URI = "mongodb+srv://danial:{}@cluster0.ftixi.gcp." \
-         "mongodb.net/{}?retryWrites=true&w=majority".format(mongo_password, db_name)
+DB_URI = f"mongodb+srv://{mongo_username}:{mongo_password}@cluster0.ftixi.gcp.mongodb.net/{db_name}?retryWrites=true&w=majority"
 
 app.config['MONGODB_HOST'] = DB_URI
 
