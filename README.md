@@ -42,5 +42,5 @@ The following assumptions were made in the project:
 * For grant disbursement endpoint, search via household size
     * Households with matching size will be processed to determine the eligibility of all grants
     * Listing of household will only list by 'house_id'
-    * Listing of qualifying members will only list by 'id'
+    * Listing of qualifying members will only list by 'id' and 'name'
  
