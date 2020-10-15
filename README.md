@@ -1,5 +1,7 @@
 # Government Grant Disbursement API
 
+*GovTech take-home technical assessment*
+
 ### Running the flask application:
 
 * Clone the repository to your desired folder
@@ -43,4 +45,7 @@ The following assumptions were made in the project:
     * Households with matching size will be processed to determine the eligibility of all grants
     * Listing of household will only list by 'house_id'
     * Listing of qualifying members will only list by 'id' and 'name'
+
+*Disclaimer: All grants mentioned here are fictitious and do not reflect actual grants that are being
+worked on or implemented by any government ministries.*
  
