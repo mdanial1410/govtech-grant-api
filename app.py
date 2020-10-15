@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_mongoengine import MongoEngine
 import json
 from mongoengine import DoesNotExist
-from datetime import datetime, date
+from functions import *
 
 app = Flask(__name__)
 
@@ -51,12 +51,14 @@ def create_household():
 
     h_id_arr = list()
     if isinstance(content, list):
+        # creating more than 1 household
         for item in content:
             h = House(house_id=h_id, housingType=item['housingType'])
             h.save()
             h_id_arr.append(h_id)
             h_id += 1
     else:
+        # creating just one household
         h = House(house_id=h_id, housingType=content['housingType'])
         h.save()
         h_id_arr.append(h_id)
@@ -93,17 +95,6 @@ def add_family(h_id):
         return make_response(f"Duplicated entries detected!", 400)
 
 
-def dup_name_check(family_arr, new_name):
-    '''
-    checks for duplicate name in the family array
-    :return: boolean
-    '''
-    for member in family_arr:
-        if member.get('name') == new_name:
-            return True
-    return False
-
-
 @app.route('/api/list_household', methods=['GET'])
 def list_household():
     houses = House.objects.all()
@@ -119,14 +110,6 @@ def show_household(h_id):
         return make_response(jsonify(h), 200)
     except DoesNotExist:
         return make_response(f'House ID: {h_id} does not exist!', 400)
-
-
-def rm_spouse(fam_list):
-    '''
-    removes the 'spouse' key from the list of family members
-    '''
-    for member in fam_list:
-        member.pop('spouse', None)
 
 
 @app.route('/api/del_household/<h_id>', methods=['DELETE'])
@@ -166,14 +149,14 @@ def grant_disbursement(h_size):
     '''
     h = House.objects.filter(family__size=int(h_size))
     if not h:
-        return make_response(f'No household of size {h_size}', 200)
+        return make_response(f'No household of size {h_size}', 400)
     h = json.loads(h.to_json())
     res = {
         'Student Encouragement Bonus': [],
         'Family Togetherness': [],
         'Elder Bonus': [],
         'Baby SunShine Grant': [],
-        'YOLO GST Grant': {}
+        'YOLO GST Grant': {'house_id': []}
     }
 
     for house in h:
@@ -183,139 +166,8 @@ def grant_disbursement(h_size):
         res.get('Baby SunShine Grant').append(baby_sunshine_grant(house))
         temp = yolo_grant(house, threshold=100000)
         if temp:
-            res['YOLO GST Grant'].setdefault('house_id', temp)
+            res.get('YOLO GST Grant')['house_id'].append(temp)
     return make_response(jsonify(res), 200)
-
-
-def seb(house, threshold):
-    '''
-    Student Encouragement Bonus
-    :return: a dict
-    '''
-    res = dict()
-    family_list = list()
-    age_arr = get_age(house['family'])
-    total_income = cal_income(house['family'])
-    if total_income < threshold:
-        for member in age_arr:
-            if member['age'] < 16:
-                family_list.append({'id': member['id'], 'name': member['name']})
-    if family_list:
-        res['house_id'] = house['house_id']
-        res['family'] = family_list
-    return res
-
-
-def fts(house):
-    '''
-    Family Togetherness Scheme
-    :return: a dict
-    '''
-    res = dict()
-    family_list = list()
-    age_arr = get_age(house['family'])
-    if check_spouse_exist(house['family']):
-        for member in age_arr:
-            if member['age'] < 18:
-                family_list.append({'id': member['id'], 'name': member['name']})
-    if family_list:
-        res['house_id'] = house['house_id']
-        res['family'] = family_list
-    return res
-
-
-def elder_bonus(house):
-    '''
-    Elder Bonus
-    :return: a dict
-    '''
-    res = dict()
-    family_list = list()
-    age_arr = get_age(house['family'])
-    for member in age_arr:
-        if member['age'] > 50:
-            family_list.append({'id': member['id'], 'name': member['name']})
-    if family_list:
-        res['house_id'] = house['house_id']
-        res['family'] = family_list
-    return res
-
-
-def baby_sunshine_grant(house):
-    '''
-    Baby Sunshine Grant
-    :return: a dict
-    '''
-    res = dict()
-    family_list = list()
-    age_arr = get_age(house['family'])
-    for member in age_arr:
-        if member['age'] < 5:
-            family_list.append({'id': member['id'], 'name': member['name']})
-    if family_list:
-        res['house_id'] = house['house_id']
-        res['family'] = family_list
-    return res
-
-
-def yolo_grant(house, threshold):
-    '''
-    retrieve households that qualify for the YOLO GST Grant
-    returns the house_id
-    '''
-    total_income = cal_income(house['family'])
-    if total_income < threshold:
-        return house['house_id']
-    return None
-
-
-def check_spouse_exist(fam_arr):
-    '''
-    Check if spouse field is filled and if spouse is in the family array
-    :return: Boolean
-    '''
-    for member in fam_arr:
-        if 'spouse' in member.keys():
-            spouse = member.get('spouse')
-            for mem in fam_arr:
-                if spouse == mem['name']:
-                    return True
-    return False
-
-
-def get_age(fam_arr):
-    '''
-    for every family member. get their age
-    return a dict {'name' : ... , 'age': ...}
-    '''
-    new_arr = list()
-    for member in fam_arr:
-        # print(f"get_age -> {member}")
-        date_obj = datetime.strptime(member['dob'], "%d-%m-%Y")
-        # print(member['dob'])
-        new_arr.append({
-                'id': member['id'],
-                'name': member['name'],
-                'age': calculate_age(date_obj),
-            })
-    # print(new_arr)
-    return new_arr
-
-
-def calculate_age(born):
-    today = date.today()
-    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
-
-
-def cal_income(fam_arr):
-    '''
-    calculate total annual income of the family
-    return int
-    '''
-    total_income = 0
-    for member in fam_arr:
-        total_income += member['annualIncome']
-    return total_income
 
 
 if __name__ == "__main__":
